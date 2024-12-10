@@ -1,0 +1,620 @@
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>IPTV Notifications</title>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+        <style>
+            :root {
+                --primary-color: #3498db;
+                --secondary-color: #2c3e50;
+                --accent-color: #e74c3c;
+                --text-color: #ecf0f1;
+                --background-color: #34495e;
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                font-family: 'Poppins', sans-serif;
+                background: linear-gradient(135deg, var(--secondary-color), var(--background-color));
+                color: var(--text-color);
+                min-height: 100vh;
+                display: grid;
+                grid-template-columns: minmax(250px, 20%) 1fr;
+                grid-template-areas: 
+                    "nav nav"
+                    "sidebar main";
+                gap: 20px;
+                background-size: 400% 400%;
+                animation: gradientBG 15s ease infinite;
+            }
+
+            @keyframes gradientBG {
+                0% {background-position: 0% 50%;}
+                50% {background-position: 100% 50%;}
+                100% {background-position: 0% 50%;}
+            }
+
+            .container {
+                grid-area: main;
+                width: 100%;
+                max-width: none;
+                padding: 20px;
+                background-color: rgba(44, 62, 80, 0.85);
+                box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+                border-radius: 20px;
+                backdrop-filter: blur(10px);
+                text-align: center;
+                margin: 20px auto;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+            }
+
+            nav {
+                grid-area: nav;
+                position: sticky;
+                top: 0;
+                width: 100%;
+                background: rgba(44, 62, 80, 0.9);
+                padding: 15px 30px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                z-index: 1000;
+                box-sizing: border-box;
+            }
+
+            nav h1 {
+                font-size: 1.8em;
+                font-weight: 600;
+            }
+
+            nav .nav-links {
+                display: flex;
+                gap: 30px;
+            }
+
+            nav .nav-links a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-weight: 400;
+                transition: color 0.3s ease;
+            }
+
+            nav .nav-links a:hover {
+                color: var(--primary-color);
+            }
+
+            header {
+                margin-bottom: 20px;
+            }
+
+            h1 {
+                font-size: 2.5em;
+                font-weight: 600;
+                margin-bottom: 10px;
+                text-shadow: 0 0 10px rgba(236, 240, 241, 0.5);
+            }
+
+            .button-container {
+                display: flex;
+                justify-content: center;
+                gap: 20px;
+                margin-bottom: 30px;
+            }
+
+            button, select, .button-container a {
+                padding: 15px 30px;
+                font-size: 1em;
+                cursor: pointer;
+                background-color: var(--primary-color);
+                color: var(--text-color);
+                border: none;
+                border-radius: 25px;
+                transition: all 0.3s ease;
+                font-family: 'Poppins', sans-serif;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+                text-decoration: none;
+                display: inline-block;
+            }
+
+            button:hover, select:hover, .button-container a:hover {
+                background-color: #2980b9;
+                transform: translateY(-3px);
+                box-shadow: 0 8px 20px rgba(41, 128, 185, 0.6);
+            }
+
+            #videoContainer {
+                position: relative;
+                width: 100%;
+                max-width: 1600px;
+                padding-bottom: 56.25%;
+                background-color: #000;
+                border-radius: 15px;
+                overflow: hidden;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+                margin: 20px auto;
+            }
+
+            #videoPlayer {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+            }
+
+            .controls {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin-top: 30px;
+                gap: 20px;
+                flex-wrap: wrap;
+            }
+
+            .mute-control, .volume-control {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                background-color: rgba(255, 255, 255, 0.1);
+                padding: 10px 20px;
+                border-radius: 25px;
+            }
+
+            #muteToggle {
+                width: 60px;
+                height: 30px;
+                background-color: #7f8c8d;
+                border-radius: 15px;
+                position: relative;
+                cursor: pointer;
+                transition: background-color 0.3s ease;
+            }
+
+            #muteToggle::after {
+                content: '';
+                position: absolute;
+                width: 26px;
+                height: 26px;
+                background-color: #ecf0f1;
+                border-radius: 50%;
+                top: 2px;
+                left: 2px;
+                transition: transform 0.3s ease;
+            }
+
+            #muteToggle.muted {
+                background-color: var(--accent-color);
+            }
+
+            #muteToggle.muted::after {
+                transform: translateX(30px);
+            }
+
+            .volume-control input[type="range"] {
+                width: 150px;
+            }
+
+            .loading {
+                text-align: center;
+                font-size: 1.4em;
+                margin-top: 30px;
+                text-shadow: 0 0 10px rgba(236, 240, 241, 0.5);
+            }
+
+            .spinner {
+                border: 5px solid rgba(255, 255, 255, 0.3);
+                border-top: 5px solid var(--primary-color);
+                border-radius: 50%;
+                width: 50px;
+                height: 50px;
+                animation: spin 1s linear infinite;
+                margin: 30px auto;
+            }
+
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+
+            .description {
+                margin-top: 20px;
+                font-size: 1.2em;
+                text-align: left;
+                padding: 20px;
+                background-color: rgba(0, 0, 0, 0.7);
+                border-radius: 10px;
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+                white-space: pre-wrap;
+            }
+
+            .highlight {
+                background-color: yellow;
+                color: black;
+            }
+
+            #selectorsContainer {
+                grid-area: sidebar;
+                position: sticky;
+                top: 70px;
+                height: calc(100vh - 90px);
+                overflow-y: auto;
+                background-color: rgba(44, 62, 80, 0.9);
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+                box-sizing: border-box;
+            }
+
+            #selectorsContainer h2 {
+                font-size: 1.2em;
+                margin-bottom: 10px;
+            }
+
+            #selectorsContainer button {
+                display: block;
+                width: 100%;
+                text-align: left;
+                padding: 10px;
+                margin-bottom: 10px;
+                background-color: var(--primary-color);
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                color: var(--text-color);
+            }
+
+            #selectorsContainer button:hover {
+                background-color: #2980b9;
+            }
+
+            .notification-badge {
+                display: inline-block;
+                background-color: var(--accent-color);
+                color: var(--text-color);
+                border-radius: 50%;
+                padding: 2px 6px;
+                font-size: 12px;
+                position: relative;
+                top: -1px;
+            }
+
+            .notification-badge:empty {
+                display: none;
+            }
+
+            @media (max-width: 1200px) {
+                body {
+                    grid-template-columns: 1fr;
+                    grid-template-areas: 
+                        "nav"
+                        "main";
+                }
+
+                #selectorsContainer {
+                    position: static;
+                    width: 100%;
+                    max-width: none;
+                    height: auto;
+                    margin-bottom: 20px;
+                }
+            }
+
+            @media (max-width: 768px) {
+                nav h1 {
+                    font-size: 1.5rem;
+                }
+
+                h1 {
+                    font-size: 2em;
+                }
+
+                button, select, .button-container a {
+                    padding: 10px 20px;
+                    font-size: 0.9rem;
+                }
+
+                #videoContainer {
+                    padding-bottom: 75%;
+                }
+
+                .description {
+                    font-size: 1rem;
+                }
+            }
+
+            @media (max-width: 480px) {
+                nav .nav-links {
+                    flex-direction: column;
+                    gap: 10px;
+                }
+
+                .controls {
+                    flex-direction: column;
+                    gap: 10px;
+                }
+            }
+
+            @media (min-width: 1600px) {
+                .container {
+                    max-width: 1600px;
+                    margin: 20px auto;
+                }
+            }
+        </style>
+    </head>
+    <body>
+
+        <nav>
+            <h1><i class="fas fa-play-circle"></i> </h1>
+            <div class="nav-links">
+                <a href="/"><i class="fas fa-home"></i> Home</a>
+                <a href="/search"><i class="fas fa-search"></i> Search</a>
+                <a href="/keywords"><i class="fas fa-tags"></i> Keywords</a>
+                <a href="/backup-playback"><i class="fas fa-hdd"></i> Backup</a>   
+                <a href="/notifications">Notifications</a>
+            </div>
+        </nav>
+
+        <div id="selectorsContainer">
+            <div id="keywordSelector"></div>
+            <div id="channelSelector"></div>
+            <div id="videoSelector"></div>
+        </div>
+        <div class="container">
+            <header>
+                <h1>Notifications</h1>
+            </header>
+
+            <div id="videoContainer">
+                <video id="videoPlayer" controls>
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+
+            <div class="controls">
+                <div class="mute-control">
+                    Mute Original Audio:
+                    <div id="muteToggle" class="muted"></div>
+                </div>
+                <div class="volume-control">
+                    MP3 Volume:
+                    <input type="range" id="volumeControl" min="0" max="1" step="0.01" value="1">
+                </div>
+            </div>
+
+            <div id="highlightsContainer"></div>
+            <div id="descriptionContainer" class="description"></div>
+        </div>
+
+           
+        <script>           
+                    let notificationData = {};
+                    let currentKeyword = '';
+                    let currentChannel = '';
+                    let currentVideo = null;
+                    let currentAudioElement = null;
+
+                    function updateKeywordSelector() {
+                        const selector = document.getElementById('keywordSelector');
+                        selector.innerHTML = '<h2>Select Keyword:</h2>';
+                        Object.keys(notificationData).forEach(keyword => {
+                            const button = document.createElement('button');
+                            button.textContent = keyword;
+                            button.onclick = () => selectKeyword(keyword);
+                            selector.appendChild(button);
+                        });
+                    }
+
+                    function selectKeyword(keyword) {
+                        currentKeyword = keyword;
+                        updateChannelSelector();
+                    }
+
+                    function updateChannelSelector() {
+                        const selector = document.getElementById('channelSelector');
+                        selector.innerHTML = '<h2>Select Channel:</h2>';
+                        Object.keys(notificationData[currentKeyword]).forEach(channel => {
+                            const button = document.createElement('button');
+                            button.textContent = channel;
+                            button.onclick = () => selectChannel(channel);
+                            selector.appendChild(button);
+                        });
+                    }
+
+                    function selectChannel(channel) {
+                        currentChannel = channel;
+                        updateVideoSelector();
+                    }
+
+                    function updateVideoSelector() {
+                        const selector = document.getElementById('videoSelector');
+                        selector.innerHTML = '<h2>Select Video:</h2>';
+                        notificationData[currentKeyword][currentChannel].forEach(video => {
+                            const button = document.createElement('button');
+                            button.textContent = video.timestamp;
+                            button.onclick = () => playVideo(video);
+                            selector.appendChild(button);
+                        });
+                    }
+
+                    function playVideo(video) {
+                        // Stop current audio if playing
+                        if (currentAudioElement) {
+                            currentAudioElement.pause();
+                            currentAudioElement = null;
+                        }
+
+                        currentVideo = video;
+                        const videoPlayer = document.getElementById('videoPlayer');
+                        videoPlayer.src = video.video;
+                        videoPlayer.innerHTML = `<track kind="captions" src="${video.captions}" srclang="ar" label="Arabic">`;
+
+                        // Initialize audio element
+                        currentAudioElement = new Audio(video.audio);
+                        currentAudioElement.volume = document.getElementById('volumeControl').value;
+
+                        // Update audio information
+                        const audioDetails = document.getElementById('audioDetails');
+                        audioDetails.textContent = `Playing audio from: ${video.audio}`;
+
+                        videoPlayer.onplay = () => {
+                            currentAudioElement.currentTime = videoPlayer.currentTime;
+                            currentAudioElement.play();
+                        };
+
+                        videoPlayer.onpause = () => {
+                            currentAudioElement.pause();
+                        };
+
+                        videoPlayer.onseeked = () => {
+                            currentAudioElement.currentTime = videoPlayer.currentTime;
+                        };
+
+                        // Ensure video respects initial mute button state
+                        const muteToggle = document.getElementById('muteToggle');
+                        videoPlayer.muted = muteToggle.classList.contains('muted');
+
+                        muteToggle.onclick = () => {
+                            videoPlayer.muted = !videoPlayer.muted;
+                            muteToggle.classList.toggle('muted');
+                        };
+
+                        const volumeControl = document.getElementById('volumeControl');
+                        volumeControl.oninput = (event) => {
+                            currentAudioElement.volume = event.target.value;
+                        };
+
+                        fetchHighlights();
+                        fetchDescription(video.captions, currentKeyword);
+                    }
+
+                    function fetchHighlights() {
+                        if (!currentVideo) return;
+
+                        fetch(`/api/highlights/${currentKeyword}/${currentChannel}/${currentVideo.timestamp}`)
+                            .then(response => response.json())
+                            .then(highlights => {
+                                const container = document.getElementById('highlightsContainer');
+                                container.innerHTML = '<h3>Keyword Highlights:</h3>';
+                                highlights.forEach(highlight => {
+                                    container.innerHTML += `<p>Keyword "${highlight.keyword}" found at line ${highlight.line} (timestamp: ${highlight.timestamp})</p>`;
+                                });
+                            })
+                            .catch(error => console.error('Error fetching highlights:', error));
+                    }
+
+                    function fetchDescription(captionsUrl, keyword) {
+                        fetch(captionsUrl)
+                            .then(response => response.text())
+                            .then(text => {
+                                const container = document.getElementById('descriptionContainer');
+                                container.innerHTML = parseVTT(text, keyword);
+                            })
+                            .catch(error => console.error('Error fetching description:', error));
+                    }
+
+                    function parseVTT(vttText, keyword) {
+                        const lines = vttText.split('\n');
+                        const keywordRegex = new RegExp(`(${keyword})`, 'gi');
+                        let parsedText = '';
+                        let highlightLines = [];
+                        let currentTimestamp = '';
+                        let lineNumber = 0;
+
+                        for (let i = 0; i < lines.length; i++) {
+                            lineNumber++;
+                            if (lines[i].includes('-->')) {
+                                currentTimestamp = lines[i];
+                                let text = '';
+
+                                // Collect all text lines after the timestamp
+                                while (++i < lines.length && lines[i].trim() !== '') {
+                                    lineNumber++;
+                                    text += lines[i] + '\n';
+                                    
+                                    // Check for keyword in this line
+                                    if (keywordRegex.test(lines[i])) {
+                                        highlightLines.push({
+                                            keyword,
+                                            line: lineNumber,
+                                            text: lines[i],
+                                            timestamp: currentTimestamp
+                                        });
+                                    }
+                                }
+
+                                // Highlight keyword in the text
+                                text = text.replace(keywordRegex, '<span class="highlight">$1</span>');
+
+                                parsedText += `${currentTimestamp}\n${text}\n`;
+                            }
+                        }
+
+                        // Update highlights container
+                        const highlightsContainer = document.getElementById('highlightsContainer');
+                        highlightsContainer.innerHTML = '<h3>Keyword Highlights:</h3>';
+                        highlightLines.forEach(highlight => {
+                            highlightsContainer.innerHTML += `<p>Keyword "${highlight.keyword}" found at line ${highlight.line} (${highlight.timestamp})</p>`;
+                        });
+
+                        return parsedText;
+                    }
+
+                    function updateNotificationCounter() {
+                        const counter = document.getElementById('notificationCounter');
+                        let totalNotifications = 0;notifications
+
+                        // Count all notifications
+                        Object.values(notificationData).forEach(channels => {
+                            Object.values(channels).forEach(videos => {
+                                totalNotifications += videos.length;
+                            });
+                        });
+
+                        counter.textContent = totalNotifications;
+                    }
+
+                    fetch('/api/notifications')
+                        .then(response => response.json())
+                        .then(data => {
+                            notificationData = data;
+                            updateKeywordSelector();
+                            updateNotificationCounter(); // Add this line
+                        })
+                        .catch(error => console.error('Error fetching notifications:', error));
+
+                    // Function to clear notifications
+                    function clearNotifications() {
+                        notificationData = {};
+                        updateKeywordSelector();
+                        updateNotificationCounter();
+                        // You may want to send a request to the server to clear notifications on the backend as well
+                    }
+
+                    // Add click event to the notifications link
+                    document.getElementById('notificationsLink').addEventListener('click', function(e) {
+                        e.preventDefault();
+                        clearNotifications();
+                        window.location.href = '/notifications';
+                    });
+
+            </script>
+
+            <script>
+                
+            </script>
+        </body>
+        </html>

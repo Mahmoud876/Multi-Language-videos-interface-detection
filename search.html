@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPTV Search</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+    <link rel="stylesheet" href="/search.css">
+</head>
+<body>
+
+    <nav>
+        <h1><i class="fas fa-play-circle"></i></h1>
+        <div class="nav-links">
+            <a href="index.html"><i class="fas fa-home"></i> Home</a>
+            <a href="search.html"><i class="fas fa-search"></i> Search</a>
+            <a href="keywords.html"><i class="fas fa-tags"></i> Keywords</a>
+            <a href="backup.html"><i class="fas fa-hdd"></i> Backup</a>  
+        </div>
+    </nav>
+
+    <div id="resultsContainer">
+        <div class="resultsList"></div>
+        <div id="paginationContainer"></div>
+    </div>
+    <div class="container">
+        <header>
+            <h1>Keywords Search</h1>
+        </header>
+
+        <div id="searchContainer">
+            <label for="channelSelect">Select Channel:</label>
+            <select id="channelSelect">
+                <option value="all">All Channels</option> <!-- Default option to search across all channels -->
+            </select>
+            <input type="text" id="searchInput" placeholder="Enter search word">
+            <button id="searchButton">Search</button>
+        </div>
+
+        <div id="videoContainer">
+            <video id="videoPlayer" controls>
+                Your browser does not support the video tag.
+            </video>
+        </div>
+
+        <div class="controls">
+            <div class="mute-control">
+                Mute Original Audio:
+                <div id="muteToggle" class="unmuted"></div>
+            </div>
+            <div class="volume-control">
+                MP3 Volume:
+                <input type="range" id="volumeControl" min="0" max="1" step="0.01" value="1">
+            </div>
+        </div>
+
+        <div id="highlightsContainer"></div>
+        <div id="descriptionContainer" class="description"></div>
+    </div>
+    <div id="loadingIndicator" style="display: none;">Loading...</div>
+
+    <script>
+        let currentAudioElement = null;
+        let currentVideo = null;
+        const resultsPerPage = 10;
+        let currentPage = 1;
+        let searchResults = [];
+        let debounceTimeout;
+
+        document.getElementById('searchInput').addEventListener('input', function(event) {
+            // clearTimeout(debounceTimeout);
+            // debounceTimeout = setTimeout(() => {
+            //     document.getElementById('searchButton').click();
+            // }, 300); // Debounce to avoid frequent searches
+        });
+
+         document.addEventListener('DOMContentLoaded', () => {
+        fetchChannels(); // Fetch channels when the page loads
+    });
+
+    function fetchChannels() {
+        fetch('/api/backup-channels') // Assuming this endpoint serves the backup channels
+            .then(response => response.json())
+            .then(channels => {
+                const channelSelect = document.getElementById('channelSelect');
+                channels.forEach(channel => {
+                    const option = document.createElement('option');
+                    option.value = channel.name;
+                    option.textContent = channel.name;
+                    channelSelect.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching channels:', error));
+    }
+
+        document.getElementById('searchButton').addEventListener('click', performSearch);
+
+        function performSearch() {
+    const searchWord = document.getElementById('searchInput').value.trim();
+    const selectedChannel = document.getElementById('channelSelect').value;
+
+    if (!searchWord) return;
+
+    let searchUrl = `/api/search?word=${encodeURIComponent(searchWord)}`;
+    
+    // Add channel parameter if a specific channel is selected
+    if (selectedChannel !== 'all') {
+        searchUrl += `&channel=${encodeURIComponent(selectedChannel)}`;
+    }
+
+    console.log(`Selected Channel: ${selectedChannel}`); // Log selected channel
+    console.log('Search URL:', searchUrl); // Debug: log the search URL
+
+    fetch(searchUrl)
+        .then(response => response.json())
+        .then(results => {
+            console.log('Search Results:', results); // Debug: log the search results
+            searchResults = results;
+            currentPage = 1;
+            displayResults(results, searchWord);
+            setupPagination(results.length);
+        })
+        .catch(error => console.error('Error performing search:', error));
+}
+
+
+
+
+
+
+function displayResults(results, searchWord, page = 1) {
+    const container = document.querySelector('.resultsList');
+    container.innerHTML = '<h2>Search Results:</h2>';
+
+    if (results.length === 0) {
+        container.innerHTML += '<p>No results found.</p>';
+        return;
+    }
+
+    console.log('Displaying Results:', results); // Debug: log the displayed results
+
+    const startIndex = (page - 1) * resultsPerPage;
+    const endIndex = Math.min(results.length, startIndex + resultsPerPage);
+    const fragment = document.createDocumentFragment();
+
+    for (let i = startIndex; i < endIndex; i++) {
+        const result = results[i];
+        let creationTime = "N/A";
+        if (result.creationTime) {
+            const dateObj = new Date(result.creationTime);
+            if (!isNaN(dateObj)) {
+                creationTime = dateObj.toLocaleString(); 
+            }
+        }
+
+        const button = document.createElement('button');
+        button.textContent = `${result.channel} - ${result.timestamp} - ${creationTime}`;
+        button.onclick = () => playVideo(result, searchWord);
+        fragment.appendChild(button);
+    }
+
+    container.appendChild(fragment);  // Batch append
+}
+
+
+        function setupPagination(totalResults) {
+            const totalPages = Math.ceil(totalResults / resultsPerPage);
+            const paginationContainer = document.getElementById('paginationContainer');
+            paginationContainer.innerHTML = `
+                <button id="prevPage">Previous</button>
+                <button id="nextPage">Next</button>
+            `;
+
+            const prevPage = document.getElementById('prevPage');
+            const nextPage = document.getElementById('nextPage');
+
+            prevPage.disabled = currentPage === 1;
+            nextPage.disabled = currentPage === totalPages;
+
+            prevPage.onclick = () => goToPage(currentPage - 1);
+            nextPage.onclick = () => goToPage(currentPage + 1);
+        }
+
+        function goToPage(page) {
+            currentPage = page;
+            displayResults(searchResults, document.getElementById('searchInput').value, page);
+            setupPagination(searchResults.length);
+        }
+
+        function playVideo(video, searchWord) {
+            if (currentAudioElement) {
+                currentAudioElement.pause();
+                currentAudioElement = null;
+            }
+
+            currentVideo = video;
+            const videoPlayer = document.getElementById('videoPlayer');
+            videoPlayer.src = video.video;
+            videoPlayer.innerHTML = `<track kind="captions" src="${video.vtt}" srclang="ar" label="Arabic">`;
+
+            currentAudioElement = new Audio(video.audio);
+            currentAudioElement.volume = document.getElementById('volumeControl').value;
+
+            videoPlayer.onplay = () => {
+                currentAudioElement.currentTime = videoPlayer.currentTime;
+                currentAudioElement.play();
+            };
+
+            videoPlayer.onpause = () => {
+                currentAudioElement.pause();
+            };
+
+            videoPlayer.onseeked = () => {
+                currentAudioElement.currentTime = videoPlayer.currentTime;
+            };
+
+            const muteToggle = document.getElementById('muteToggle');
+            videoPlayer.muted = muteToggle.classList.contains('muted');
+
+            muteToggle.onclick = () => {
+                videoPlayer.muted = !videoPlayer.muted;
+                muteToggle.classList.toggle('muted');
+            };
+
+            const volumeControl = document.getElementById('volumeControl');
+            volumeControl.oninput = (event) => {
+                currentAudioElement.volume = event.target.value;
+            };
+
+            fetchDescription(video.vtt, searchWord);
+        }
+
+        function fetchDescription(vttUrl, searchWord) {
+            fetch(vttUrl)
+                .then(response => response.text())
+                .then(text => {
+                    const container = document.getElementById('descriptionContainer');
+                    container.innerHTML = parseVTT(text, searchWord);
+                })
+                .catch(error => console.error('Error fetching description:', error));
+        }
+
+        function parseVTT(vttText, searchWord) {
+            const lines = vttText.split('\n');
+            const searchWordRegex = new RegExp(`(${searchWord})`, 'gi');
+            let parsedText = '';
+            let highlightLines = [];
+            let currentTimestamp = '';
+            let lineNumber = 0;
+
+            for (let i = 0; i < lines.length; i++) {
+                lineNumber++;
+                if (lines[i].includes('-->')) {
+                    currentTimestamp = lines[i];
+                    let text = '';
+
+                    while (++i < lines.length && lines[i].trim() !== '') {
+                        lineNumber++;
+                        text += lines[i] + '\n';
+                        
+                        if (searchWordRegex.test(lines[i])) {
+                            highlightLines.push({
+                                line: lineNumber,
+                                text: lines[i],
+                                timestamp: currentTimestamp
+                            });
+                        }
+                    }
+
+                    text = text.replace(searchWordRegex, '<span class="highlight">$1</span>');
+
+                    parsedText += `${currentTimestamp}\n${text}\n`;
+                }
+            }
+
+            const highlightsContainer = document.getElementById('highlightsContainer');
+            highlightsContainer.innerHTML = '<h3>Search Word Highlights:</h3>';
+            highlightLines.forEach(highlight => {
+                highlightsContainer.innerHTML += `<p>Search word "${searchWord}" found at line ${highlight.line} (${highlight.timestamp})</p>`;
+            });
+
+            return parsedText;
+        }
+    </script>
+</body>
+</html>

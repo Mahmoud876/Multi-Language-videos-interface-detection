@@ -1,0 +1,145 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title></title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        /* Hide the notification count (badge) */
+        .notification-badge {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <h1><i class="fas fa-play-circle"></i> </h1>
+        <div class="nav-links">
+            <!-- <a href="#" id="notificationIcon"><i class="fas fa-bell"></i> <span id="notificationCount" class="notification-badge">0</span></a> -->
+            <a href="index.html"><i class="fas fa-home"></i> Home</a>
+            <a href="search.html"><i class="fas fa-search"></i> Search</a>
+            <a href="keywords.html"><i class="fas fa-tags"></i> Keywords</a>
+            <a href="backup.html"><i class="fas fa-hdd"></i> Backup</a>    
+        </div>
+    </nav>
+    
+    <div class="container">
+        <header>
+            <h1></h1>
+        </header>
+        <div class="main-content">
+            <div class="channel-select-container">
+                <select id="channelSelector" class="channel-select">
+                    <option value="">Select channel</option>
+                </select>
+            </div>
+            <div class="search-container">
+                <input type="text" id="searchBar" placeholder="Search by video ID or name...">
+                <div id="searchResultsContainer" class="search-results"></div>
+            </div>
+            
+            <div class="video-section">
+                <div class="content-wrapper">
+                    <div class="videoContainer">
+                        <video id="videoPlayer" class="videoPlayer" controls>
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                    <div id="descriptionContainer" class="description">
+                        <!-- Captions will be displayed here -->
+                    </div>
+                </div>
+
+                <button id="downloadCaptionsBtn">Download Captions</button>
+                <button id="downloadMergedVideoBtn">Download Merged Video</button>
+
+                
+                <div class="controls">
+                    <div class="control-item mute-control">
+                        <label for="muteToggle" class="control-label">Mute Original Audio:</label>
+                        <div id="muteToggle" class="toggle-switch"></div>
+                    </div>
+                    <div class="control-item mp3-mute-control">
+                        <label for="mp3MuteToggle" class="control-label">Mute MP3 Audio:</label>
+                        <div id="mp3MuteToggle" class="toggle-switch"></div>
+                    </div>
+                    <div class="control-item volume-control">
+                        <label for="mp3VolumeControl" class="control-label">MP3 Volume:</label>
+                        <input type="range" id="mp3VolumeControl" min="0" max="1" step="0.1" value="1">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="notificationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Notifications</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div id="notificationList">
+                <!-- Notifications will be populated here -->
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Function to load video from URL query parameters
+        function loadVideoFromQueryParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const channel = urlParams.get('channel');
+            const timestamp = urlParams.get('timestamp');
+
+            if (channel && timestamp) {
+                // Load the corresponding video based on the channel and timestamp
+                loadVideo(channel, timestamp);
+            }
+        }
+
+        // Function to load and play the video based on the channel and timestamp
+        function loadVideo(channel, timestamp) {
+            const videoPlayer = document.getElementById('videoPlayer');
+            const descriptionContainer = document.getElementById('descriptionContainer');
+
+            // Clear existing captions tracks before adding new ones
+            const existingTracks = videoPlayer.querySelectorAll('track');
+            existingTracks.forEach(track => track.remove());
+
+            // Construct the video and caption paths (assuming the files are stored in the backup folder)
+            const videoPath = `/backup/${channel}/original_videos/${channel}_${timestamp}.mp4`;
+            const captionPath = `/backup/${channel}/captions/${channel}_${timestamp}.vtt`;
+
+            // Set the video source
+            videoPlayer.src = videoPath;
+
+            // Create and append the <track> element for captions
+            const trackElement = document.createElement('track');
+            trackElement.kind = 'captions';
+            trackElement.label = 'Subtitles';
+            trackElement.srclang = 'en'; // Modify this based on the subtitle language
+            trackElement.src = captionPath;
+            trackElement.default = true; // Set this to true if it's the default caption track
+
+            videoPlayer.appendChild(trackElement);
+
+            // Play the video
+            videoPlayer.load();
+            videoPlayer.play();
+        }
+
+        // Call this function when the page loads
+        window.onload = function() {
+            loadVideoFromQueryParams();  // This checks if any video needs to be loaded based on the query params
+        };
+    </script>
+    
+    <script src="/backup.js"></script>
+</body>
+</html>
+

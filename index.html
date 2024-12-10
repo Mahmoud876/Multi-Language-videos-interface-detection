@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPTV Translated Stream</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/index.css">
+</head>
+<body>
+
+
+    <div class="sidebar">
+        <h2>Channels</h2>
+        <div id="channelButtonsContainer" class="channel-buttons-container">
+            <!-- Channel buttons will be dynamically added here -->
+        </div>
+    </div>
+    <div class="right-sidebar">
+        <a href="#" id="notificationIcon">
+            <i class="fas fa-bell"></i> 
+            <span id="notificationCount" class="notification-badge">5</span> <!-- Notification count -->
+            <span>Notifications</span> <!-- Notification title -->
+        </a>
+        <a href="index.html" id="homeLink">
+            <i class="fas fa-home"></i> 
+            <span>Home</span>
+        </a>
+        <a href="search.html" id="searchLink">
+            <i class="fas fa-search"></i> 
+            <span>Search</span>
+        </a>
+        <a href="keywords.html" id="keywordsLink">
+            <i class="fas fa-tags"></i> 
+            <span>Keywords</span>
+        </a>
+        <a href="backup.html" id="backupLink">
+            <i class="fas fa-hdd"></i> 
+            <span>Backup</span>
+        </a>
+    </div>
+    
+    
+    
+
+    <nav>
+        <h1>
+            
+
+        <i class="fas fa-play-circle"></i> </h1>
+        <!-- <div class="nav-links">
+            <a href="#" id="notificationIcon"><i class="fas fa-bell"></i> <span id="notificationCount" class="notification-badge">0</span></a>
+            <a href="/" id="homeLink"><i class="fas fa-home"></i> Home</a>
+            <a href="/search" id="searchLink"><i class="fas fa-search"></i> Search</a>
+            <a href="/keywords" id="keywordsLink"><i class="fas fa-tags"></i> Keywords</a>
+            <a href="/backup-playback" id="backupLink"><i class="fas fa-hdd"></i> Backup</a> -->
+            <!-- <a href="/notifications">Notifications</a> -->
+        <!-- </div> -->
+    </nav>
+    
+
+    <div class="container">
+        
+        <!-- <header>
+            <h1 Translated Stream</h1>
+        </header> -->
+        <div class="content-wrapper"></div>
+
+         <!--  Channel buttons  -->
+        <div id="channelButtonsContainer" class="channel-buttons-container"></div>
+        <div class="video-and-description"></div>
+        
+        <div class="main-content" id="videoSections"></div>
+    </div>
+    <div id="notificationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Notifications</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div id="notificationList"></div>
+            <div class="main-content" id="videoSections"></div>
+        </div>
+    </div>
+
+    <script>
+    let channels = [];
+    let currentVideoIndex = {};  // Track the current video index for each channel
+
+    const videoSections = document.getElementById('videoSections');
+    const channelButtonsContainer = document.getElementById('channelButtonsContainer');
+    const notificationCount = document.getElementById('notificationCount');
+    const notificationIcon = document.getElementById('notificationIcon');
+    const notificationModal = document.getElementById('notificationModal');
+    const notificationList = document.getElementById('notificationList');
+    const closeBtn = document.getElementsByClassName('close')[0];
+    const REFRESH_INTERVAL = 5000;  // Refresh interval in milliseconds
+
+    setInterval(() => {
+        window.location.reload(true);
+    }, 420000); // 180000 ms = 3 minutes 6000000 ms = 10
+
+
+    ////new 18-sep//////
+    document.getElementById('searchLink').addEventListener('click', function(event) {
+    event.preventDefault();
+    window.open('/search', '_blank');
+});
+
+    document.getElementById('keywordsLink').addEventListener('click', function(event) {
+        event.preventDefault();
+        window.open('/keywords', '_blank');
+    });
+
+    document.getElementById('backupLink').addEventListener('click', function(event) {
+        event.preventDefault();
+        window.open('/backup-playback', '_blank');
+    });
+
+
+    async function fetchChannels() {
+        try {
+            const response = await fetch('/api/channels', {
+                headers: {
+                    'Cache-Control': 'no-cache'
+                }
+            });
+            if (!response.ok) {
+                throw new Error('Failed to fetch channels');
+            }
+            channels = await response.json();
+
+            // Filter out channels that have no videos
+            channels = channels.filter(channel => channel.videos && channel.videos.length > 0);
+
+            if (channels.length > 0) {
+                createChannelButtons();
+            } else {
+                videoSections.textContent = 'No channels available';
+            }
+        } catch (error) {
+            console.error('Error fetching channels:', error);
+            videoSections.textContent = 'Error loading channels';
+        }
+    }
+
+    function createChannelButtons() {
+        channelButtonsContainer.innerHTML = '';  // Clear previous buttons
+        channels.forEach((channel, index) => {
+            const button = document.createElement('button');
+            button.textContent = channel.name;
+            button.classList.add('channel-button');
+            button.addEventListener('click', () => {
+                selectChannel(index);
+            });
+            channelButtonsContainer.appendChild(button);
+        });
+    }
+
+    async function selectChannel(channelIndex) {
+            const channel = channels[channelIndex];
+            if (channel.videos.length > 0) {
+                videoSections.innerHTML = ''; // Clear previous videos
+                const videoSection = createVideoSection(channel.name);
+                videoSections.appendChild(videoSection);
+
+                // Load and play the latest video
+                const latestVideoData = await fetchLatestVideo(channel.name);
+                if (latestVideoData) {
+                    await loadAndPlayVideo(channel, latestVideoData, videoSection);
+                }
+            }
+        }
+
+
+    async function setSelectedChannel(channelIndex) {
+        await fetch('/api/setChannel', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ channelIndex })
+        });
+    }
+
+    function setActiveChannelButton(index) {
+        const buttons = document.querySelectorAll('.channel-button');
+        buttons.forEach((button, i) => {
+            button.classList.toggle('active', i === index);
+        });
+    }
+
+    async function playChannelVideos(channelIndex) {
+        const channel = channels[channelIndex];
+        if (channel.videos.length > 0) {
+            videoSections.innerHTML = '';
+
+            // Create the video section for the selected channel
+            const videoSection = createVideoSection(channel.name);
+            videoSections.appendChild(videoSection);
+
+            // ** Fetch and play the latest video for live streaming ** 
+            const latestVideoData = await fetchLatestVideo(channel.name); 
+
+            // Load and play the first video of the selected channel
+            currentVideoIndex[channel.name] = 0;
+            await loadAndPlayVideo(channel, latestVideoData, videoSection);
+        }
+    }
+
+    async function fetchLatestVideo(channelName) {
+        try {
+            const response = await fetch(`/api/channels/${channelName}/latest`);
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error(`Error fetching latest video for ${channelName}:`, error);
+            return null;
+        }
+    }
+
+    function createVideoSection(channelName) {
+        const videoSection = document.createElement('div');
+        videoSection.className = 'video-section';
+        videoSection.id = `video-section-${channelName}`;
+
+        const contentWrapper = document.createElement('div');
+        contentWrapper.className = 'content-wrapper';
+
+        const videoContainer = document.createElement('div');
+        videoContainer.className = 'videoContainer';
+
+        const loadingMessage = document.createElement('div');
+        loadingMessage.className = 'loading';
+        loadingMessage.textContent = ` ${channelName}`;
+        videoSection.appendChild(loadingMessage);
+
+        const videoPlayer = document.createElement('video');
+        videoPlayer.className = 'videoPlayer';
+        videoPlayer.autoplay = true;
+        videoPlayer.muted = true;
+
+        const videoSource = document.createElement('source');
+        videoPlayer.appendChild(videoSource);
+
+        const captionTrack = document.createElement('track');
+        captionTrack.kind = 'captions';
+        captionTrack.srclang = 'ar';
+        captionTrack.label = 'Arabic';
+        captionTrack.default = true;
+        videoPlayer.appendChild(captionTrack);
+
+        const audioPlayer = document.createElement('audio');
+        audioPlayer.autoplay = true;
+        audioPlayer.muted = true;
+        videoContainer.appendChild(videoPlayer);
+        videoContainer.appendChild(audioPlayer);
+
+        const descriptionDiv = document.createElement('div');
+        descriptionDiv.className = 'description';
+
+        contentWrapper.appendChild(videoContainer);
+        contentWrapper.appendChild(descriptionDiv);
+
+        videoSection.appendChild(contentWrapper);
+
+        const controlsDiv = createControls(videoPlayer, audioPlayer);
+        videoSection.appendChild(controlsDiv);
+
+        return videoSection;
+    }
+
+    function createControls(videoPlayer, audioPlayer) {
+        const controlsDiv = document.createElement('div');
+        controlsDiv.className = 'controls';
+
+        const createControlItem = (labelText, elementType, className) => {
+            const controlItem = document.createElement('div');
+            controlItem.className = 'control-item';
+
+            const label = document.createElement('span');
+            label.className = 'control-label';
+            label.textContent = labelText;
+
+            const element = document.createElement(elementType);
+            element.className = className;
+
+            controlItem.appendChild(label);
+            controlItem.appendChild(element);
+            return { controlItem, element };
+        };
+
+        const { controlItem: muteControl, element: muteToggle } = createControlItem('Mute Original:', 'div', 'mute-toggle muted');
+        const { controlItem: mp3MuteControl, element: mp3MuteToggle } = createControlItem('Mute Arabic:', 'div', 'mp3-mute-toggle muted');
+        const { controlItem: volumeControl, element: volumeRange } = createControlItem('Arabic Volume:', 'input', 'volume-range');
+
+        volumeRange.type = 'range';
+        volumeRange.min = '0';
+        volumeRange.max = '1';
+        volumeRange.step = '0.01';
+        volumeRange.value = '1';
+
+        // controlsDiv.appendChild(muteControl);
+        controlsDiv.appendChild(mp3MuteControl);
+        controlsDiv.appendChild(volumeControl);
+
+        muteToggle.addEventListener('click', () => {
+            videoPlayer.muted = !videoPlayer.muted;
+            muteToggle.classList.toggle('muted', videoPlayer.muted);
+        });
+
+        mp3MuteToggle.addEventListener('click', () => {
+            audioPlayer.muted = !audioPlayer.muted;
+            mp3MuteToggle.classList.toggle('muted', audioPlayer.muted);
+        });
+
+        volumeRange.addEventListener('input', () => {
+            audioPlayer.volume = volumeRange.value;
+        });
+
+        return controlsDiv;
+    }
+
+async function loadAndPlayVideo(channel, videoData, videoSection, videoIndex) {
+    const videoPlayer = videoSection.querySelector('.videoPlayer');
+    const audioPlayer = videoSection.querySelector('audio');
+    const videoSource = videoPlayer.querySelector('source');
+    const captionTrack = videoPlayer.querySelector('track');
+    const descriptionDiv = videoSection.querySelector('.description');
+
+    // Set the correct sources for video, audio, and captions
+    videoSource.src = videoData.video;
+    // audioPlayer.src = videoData.audio || ''; 
+    captionTrack.src = videoData.captions || '';
+
+    // Load the media
+    videoPlayer.load();
+    // audioPlayer.load();
+
+    // Fetch and display captions (VTT)
+    if (videoData.captions) {
+        const captionsText = await fetchCaptions(videoData.captions);
+        descriptionDiv.innerHTML = captionsText;
+    } else {
+        descriptionDiv.innerHTML = 'No captions available.';
+    }
+
+     // Function to handle play attempts
+     const attemptPlay = async () => {
+        try {
+            videoPlayer.muted = false;  // Unmute the video
+            await videoPlayer.play();  // Play the video with audio
+        } catch (error) {
+            console.error('Error playing video with audio:', error);
+            // Provide user feedback or add a play button if necessary
+        }
+    };
+
+
+    // // Trigger play on user interaction if needed
+    // document.querySelector('button#playButton').addEventListener('click', attemptPlay);
+    videoPlayer.onloadedmetadata = attemptPlay;
+
+    // // Add event listener to play media when metadata is loaded
+    // videoPlayer.onloadedmetadata = attemptPlay;
+
+    // Handle end of video
+    videoPlayer.addEventListener('ended', async () => {
+        console.log(`Video ended for channel: ${channel.name}`);
+
+        // Fetch the latest available video after the current video ends
+        const latestVideoData = await fetchLatestVideo(channel.name);
+
+        if (latestVideoData && latestVideoData.video) {
+            console.log(`Loading new video for channel: ${channel.name}`);
+            await loadAndPlayVideo(channel, latestVideoData, videoSection);  // Load the latest video and continue playing
+        } else {
+            console.log('No new videos available.');
+            descriptionDiv.innerHTML = 'No new videos available at the moment.';
+        }
+    });
+}
+
+
+    async function fetchCaptions(captionsUrl) {
+        try {
+            const response = await fetch(captionsUrl);
+            if (!response.ok) {
+                throw new Error('Failed to fetch captions');
+            }
+            const vttText = await response.text();
+            return parseVtt(vttText);
+        } catch (error) {
+            console.error('Error fetching captions:', error);
+            return 'Failed to load description.';
+        }
+    }
+    function parseVtt(vttText) {
+    const lines = vttText.split('\n').filter(line => !line.startsWith('WEBVTT') && line.trim() !== '');
+    return lines.join('<br>');
+}
+    function delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function refreshChannelVideos(channelName, videoSection, attempt = 0) {
+        const maxAttempts = 10; // maximum number of retries
+        const retryDelay = 5000; // delay between retries in milliseconds
+
+        try {
+            const response = await fetch('/api/channels', {
+                headers: {
+                    'Cache-Control': 'no-cache'
+                }
+            });
+            if (!response.ok) {
+                throw new Error('Failed to fetch channels');
+            }
+            const newChannels = await response.json();
+            const channel = newChannels.find(c => c.name === channelName);
+
+            if (channel && channel.videos.length > 0) {
+                const existingChannelIndex = channels.findIndex(c => c.name === channelName);
+                channels[existingChannelIndex] = channel;
+
+                if (currentVideoIndex[channelName] >= channel.videos.length) {
+                    currentVideoIndex[channelName] = 0;
+                }
+
+                await loadAndPlayVideo(channel, videoSection, currentVideoIndex[channelName]);
+            } else {
+                throw new Error('No new videos available');
+            }
+        } catch (error) {
+            console.error('Error refreshing channel videos:', error);
+            if (attempt < maxAttempts) {
+                console.log(`Retrying... Attempt ${attempt + 1} of ${maxAttempts}`);
+                await delay(retryDelay);
+                await refreshChannelVideos(channelName, videoSection, attempt + 1);
+            } else {
+                console.error('Max retry attempts reached. No new videos available.');
+            }
+        }
+    }
+    async function fetchNotificationsGrouped() {
+    try {
+        const response = await fetch('/api/notifications/list');
+        const notificationsGrouped = await response.json();
+        renderKeywordGroups(notificationsGrouped);
+    } catch (error) {
+        console.error('Error fetching grouped notifications:', error);
+    }
+}
+function renderKeywordGroups(notificationsGrouped) {
+    const notificationList = document.getElementById('notificationList');
+    notificationList.innerHTML = ''; // Clear the current content
+
+    Object.keys(notificationsGrouped).forEach(keyword => {
+        const keywordDiv = document.createElement('div');
+        keywordDiv.className = 'keyword-item';
+        keywordDiv.textContent = keyword; // Display the keyword name
+
+        // Add a click event to load notifications for the selected keyword
+        keywordDiv.addEventListener('click', () => {
+            renderNotificationsForKeyword(keyword, notificationsGrouped[keyword]);
+        });
+
+        notificationList.appendChild(keywordDiv);
+    });
+}
+function renderNotificationsForKeyword(keyword, notifications) {
+    const notificationList = document.getElementById('notificationList');
+    notificationList.innerHTML = ''; // Clear the current content
+
+    // Add a back button to return to the keywords list
+    const backButton = document.createElement('button');
+    backButton.textContent = 'Back to Keywords';
+    backButton.className = 'back-button';
+    backButton.addEventListener('click', fetchNotificationsGrouped);
+    notificationList.appendChild(backButton);
+
+    // Add a header for the selected keyword
+    const header = document.createElement('h3');
+    header.textContent = `Notifications for: ${keyword}`;
+    notificationList.appendChild(header);
+
+    // Render each notification
+    notifications.forEach(notification => {
+        const notificationDiv = document.createElement('div');
+        notificationDiv.className = 'notification-item';
+
+        notificationDiv.innerHTML = `
+            <p><strong>Channel:</strong> ${notification.channel}</p>
+            <p><strong>Timestamp:</strong> ${notification.timestamp}</p>
+            <button onclick="goToBackup('${notification.channel}', '${notification.timestamp}')">
+                View Video
+            </button>
+            <button onclick="goToChannel('${notification.channel}')">
+                View Channel
+            </button>
+        `;
+
+        notificationList.appendChild(notificationDiv);
+    });
+}
+
+    async function moveToBackup(channelName, fileName) {
+        try {
+            const response = await fetch('/api/moveToBackup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    channelName: channelName,
+                    fileName: fileName
+                })
+            });
+            if (!response.ok) {
+                throw new Error('Failed to move files to backup');
+            }
+        } catch (error) {
+            console.error('Error moving files to backup:', error);
+        }
+    }
+
+    async function fetchNotificationCount() {
+        try {
+            const response = await fetch('/api/notifications/count');
+            const data = await response.json();
+            notificationCount.textContent = data.count;
+        } catch (error) {
+            console.error('Error fetching notification count:', error);
+        }
+    }
+
+function fetchNotifications() {
+    fetch('/api/notifications/list')
+        .then(response => response.json())
+        .then(notifications => {
+            const notificationList = document.getElementById('notificationList');
+            notificationList.innerHTML = ''; // Clear previous notifications
+
+            notifications.forEach(notification => {
+                const notificationItem = document.createElement('div');
+                notificationItem.classList.add('notification-item');
+
+                // Create clickable links for both viewing the video and the channel
+                notificationItem.innerHTML = `
+                    <p><strong>Keyword:</strong> ${notification.keyword}</p>
+                    <p><strong>Channel:</strong> ${notification.channel}</p>
+                    <p><strong>Timestamp:</strong> ${notification.timestamp}</p>
+                    <button onclick="goToBackup('${notification.channel}', '${notification.timestamp}')">
+                        View Video
+                    </button>
+                    <button onclick="goToChannel('${notification.channel}')">
+                        View Channel
+                    </button>
+                `;
+
+                // Insert new notification at the top of the list
+                notificationList.insertBefore(notificationItem, notificationList.firstChild);
+            });
+        })
+        .catch(error => console.error('Error fetching notifications:', error));
+}
+
+
+// Function to open the "View Video" link in a new tab
+function goToBackup(channel, timestamp) {
+    // Construct the URL with query parameters
+    const backupUrl = `/backup-playback?channel=${channel}&timestamp=${timestamp}`;
+    // Open the backup page in a new tab
+    window.open(backupUrl, '_blank');
+}
+
+// Function to simulate selecting the channel in the current page
+function goToChannel(channelName) {
+    // Find the channel by name
+    const channelIndex = channels.findIndex(channel => channel.name === channelName);
+    if (channelIndex !== -1) {
+        // Call the existing function to load and display the selected channel
+        selectChannel(channelIndex);
+    } else {
+        console.error(`Channel ${channelName} not found`);
+    }
+}
+
+
+
+
+   notificationIcon.onclick = function () {
+    fetchNotificationsGrouped(); // Fetch and display grouped notifications
+    notificationModal.style.display = 'block'; // Show modal
+};
+
+
+    // Close the modal when the close button is clicked
+    closeBtn.onclick = function() {
+        notificationModal.style.display = 'none';
+    }
+
+    // Close the modal if clicked outside the modal content
+    window.onclick = function(event) {
+        if (event.target == notificationModal) {
+            notificationModal.style.display = 'none';
+        }
+    }
+
+    // Fetch the notification count on page load and update every minute
+    window.addEventListener('load', fetchNotificationCount);
+    setInterval(fetchNotificationCount, 10000);
+
+    async function loadNotifications() {
+    try {
+        const response = await fetch('/api/notifications', {
+            headers: {
+                'Cache-Control': 'no-cache'
+            }
+        });
+
+        // Assume notifications are a flat array of objects
+        const notifications = await response.json();
+        notificationList.innerHTML = ''; // Clear previous notifications
+
+        // Iterate over each notification object
+        notifications.forEach(notification => {
+            const notificationItem = document.createElement('div');
+            notificationItem.className = 'notification-item';
+
+            notificationItem.innerHTML = `
+                <p><strong>Keyword:</strong> ${notification.keyword}</p>
+                <p><strong>Channel:</strong> ${notification.channel}</p>
+                <p><strong>Timestamp:</strong> ${notification.timestamp}</p>
+                <button onclick="playNotificationVideo('${notification.keyword}', '${notification.channel}', '${notification.timestamp}')">
+                    Play Video (<mark>${notification.keyword}</mark>)
+                </button>
+                <button class="remove-btn" onclick="removeNotification('${notification.keyword}', '${notification.channel}', '${notification.timestamp}')">
+                    Remove
+                </button>
+            `;
+
+            // Append each notification to the notificationList div
+            notificationList.appendChild(notificationItem);
+        });
+    } catch (error) {
+        console.error('Error loading notifications:', error);
+    }
+}
+
+
+async function playNotificationVideo(keyword, channel, timestamp) {
+    notificationModal.style.display = 'none'; // Hide the modal when a video is selected
+
+    // Construct paths for video, audio, and captions
+    const videoPath = `/notification/${keyword}/${channel}/original_videos/${channel}_${timestamp}.mp4`;
+    const audioPath = `/notification/${keyword}/${channel}/generated_audios/${channel}_${timestamp}.mp3`;
+    const captionsPath = `/notification/${keyword}/${channel}/captions/${channel}_${timestamp}.vtt`;
+
+    // Clear previous content in the video section
+    const videoSections = document.getElementById('videoSections');
+    videoSections.innerHTML = '';
+
+    // Create the video section
+    const videoSection = document.createElement('div');
+    videoSection.className = 'video-section';
+
+    const contentWrapper = document.createElement('div');
+    contentWrapper.className = 'content-wrapper';
+
+    const videoContainer = document.createElement('div');
+    videoContainer.className = 'videoContainer';
+
+    // Create video player and set source
+    const videoPlayer = document.createElement('video');
+    videoPlayer.className = 'videoPlayer';
+    videoPlayer.autoplay = true;
+    videoPlayer.muted = true;
+
+    const videoSource = document.createElement('source');
+    videoSource.src = videoPath; // Use the constructed video path
+    videoSource.type = 'video/mp4';
+
+    // Create and add caption track
+    const captionTrack = document.createElement('track');
+    captionTrack.kind = 'captions';
+    captionTrack.srclang = 'ar';
+    captionTrack.label = 'Arabic';
+    captionTrack.src = captionsPath; // Use the constructed caption path
+    captionTrack.default = true;
+
+    // Create audio player and set source
+    const audioPlayer = document.createElement('audio');
+    audioPlayer.autoplay = true;
+    audioPlayer.src = audioPath; // Use the constructed audio path
+    audioPlayer.type = 'audio/mp3';
+
+    // Append video, audio, and captions to container
+    videoPlayer.appendChild(videoSource);
+    videoPlayer.appendChild(captionTrack);
+    videoContainer.appendChild(videoPlayer);
+    videoContainer.appendChild(audioPlayer);
+    contentWrapper.appendChild(videoContainer);
+
+    // Create description area for captions
+    const descriptionDiv = document.createElement('div');
+    descriptionDiv.className = 'description';
+
+    // Append container and description to the content wrapper
+    contentWrapper.appendChild(descriptionDiv);
+
+    // Append content wrapper to the video section
+    videoSection.appendChild(contentWrapper);
+
+    // Create and add controls for volume and mute functionality
+    const controlsDiv = createControls(videoPlayer, audioPlayer);
+    videoSection.appendChild(controlsDiv);
+
+    // Add the video section to the main videoSections div
+    videoSections.appendChild(videoSection);
+
+    // Load media (video and audio) when metadata is available
+    videoPlayer.onloadedmetadata = async () => {
+        try {
+            await Promise.all([
+                videoPlayer.play(),
+                audioPlayer.play()
+            ]);
+        } catch (error) {
+            console.error('Error playing video or audio:', error);
+        }
+    };
+
+    // Fetch and display captions
+    const captionsText = await fetchCaptions(captionsPath);
+    const highlightedDescription = captionsText.replace(new RegExp(`(${keyword})`, 'gi'), '<mark>$1</mark>');
+    descriptionDiv.innerHTML = highlightedDescription;
+}
+
+
+
+    async function removeNotification(keyword, channel, timestamp) {
+        try {
+            const response = await fetch('/api/removeNotification', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ keyword, channel, timestamp })
+            });
+
+            
+            if (!response.ok) {
+                throw new Error('Failed to remove notification');
+            }
+
+            const notificationItem = document.querySelector(`.notification-item button[onclick*="${keyword}"][onclick*="${channel}"][onclick*="${timestamp}"]`).parentNode;
+            notificationItem.remove();
+
+            await fetchNotificationCount();
+        } catch (error) {
+            console.error('Error removing notification:', error);
+        }
+    }
+
+    window.addEventListener('load', async () => {
+        await fetchChannels();
+        await fetchNotificationCount();
+        setInterval(fetchNotificationCount, 60000);
+        setInterval(updateChannels, REFRESH_INTERVAL);  // Update channels data every 10 seconds
+    });
+    
+    </script>
+     <!-- <script src="script.js"></script> -->
+</body>
+</html>

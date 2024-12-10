@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyword Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+    <link rel="stylesheet" href="/keyword.css">
+</head>
+<body>
+    <nav>
+        <h1>
+            <i class="fas fa-play-circle"></i> </h1>
+        <div class="nav-links">
+            <a href="index.html"><i class="fas fa-home"></i> Home</a>
+            <a href="search.html"><i class="fas fa-search"></i> Search</a>
+            <a href="keywords.html"><i class="fas fa-tags"></i> Keywords</a>
+            <a href="backup.html"><i class="fas fa-hdd"></i> Backup</a>  
+            <!-- <a href="/notifications"><i class="fas fa-bell"></i> Notifications</a> -->
+        </div>
+    </nav>
+    <div class="container">
+        <header>
+            <h1>Keyword Management</h1>
+        </header>
+        <div class="main-content">
+            <form id="keywordForm">
+                <input type="text" id="keywordInput" placeholder="Enter a new keyword" required>
+                <button type="submit">Add Keyword</button>
+            </form>
+            <!-- <form id="searchForm">
+                <input type="text" id="searchInput" placeholder="Search keywords">
+            </form> -->
+            <h2>Existing Keywords</h2>
+            <ul id="keywordList"></ul>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const keywordForm = document.getElementById('keywordForm');
+            const keywordInput = document.getElementById('keywordInput');
+            // const searchInput = document.getElementById('searchInput');
+            const keywordList = document.getElementById('keywordList');
+    
+            // Load keywords from the server
+            loadKeywords();
+    
+            keywordForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const keyword = keywordInput.value.trim();  // Get keyword value from input
+                if (keyword) {
+                    await addKeyword(keyword);  // Add the keyword via the backend API
+                    keywordInput.value = '';    // Clear the input field
+                    loadKeywords();             // Reload the list of keywords
+                }
+            });
+    
+            searchInput.addEventListener('input', () => {
+                const searchTerm = searchInput.value.toLowerCase();
+                const keywords = keywordList.querySelectorAll('li');
+                keywords.forEach(keyword => {
+                    const text = keyword.textContent.toLowerCase();
+                    keyword.style.display = text.includes(searchTerm) ? '' : 'none';
+                });
+            });
+    
+            // Function to fetch keywords from the backend and display them
+            async function loadKeywords() {
+                try {
+                    const response = await fetch('/display/keywords');  // Fetch existing keywords from the server
+                    const keywords = await response.json();
+                    displayKeywords(keywords);  // Display the list of keywords
+                } catch (error) {
+                    console.error('Error loading keywords:', error);
+                }
+            }
+    
+            function displayKeywords(keywords) {
+                keywordList.innerHTML = '';  // Clear the current list
+                keywords.forEach(keyword => {
+                    const li = document.createElement('li');
+                    li.textContent = keyword;
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = 'Delete';
+                    deleteBtn.className = 'delete-btn';
+                    deleteBtn.onclick = () => deleteKeyword(keyword);  // Attach delete functionality
+                    li.appendChild(deleteBtn);
+                    keywordList.appendChild(li);  // Add keyword to the DOM
+                });
+            }
+    
+            async function addKeyword(keyword) {
+                try {
+                    await fetch('/api/keywords', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify([keyword]),
+                    });
+                } catch (error) {
+                    console.error('Error adding keyword:', error);
+                }
+            }
+    
+            async function deleteKeyword(keyword) {
+                try {
+                    await fetch('/api/removeKeyword', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ keyword }),
+                    });
+                    loadKeywords();  // Reload the keywords after deletion
+                } catch (error) {
+                    console.error('Error deleting keyword:', error);
+                }
+            }
+        });
+    </script>
+    
+</body>
+</html>
